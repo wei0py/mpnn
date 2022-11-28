@@ -2,6 +2,8 @@ torch
 torchvision
 numpy
 wget
-networkx
+networkx==1.11
 joblib
 tensorboard
+tensorboard_logger
+rdkit

@@ -242,8 +242,8 @@ def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger):
         train_loss = criterion(output, target)
 
         # Logs
-        losses.update(train_loss.data[0], g.size(0))
-        error_ratio.update(evaluation(output, target).data[0], g.size(0))
+        losses.update(train_loss.data, g.size(0))
+        error_ratio.update(evaluation(output, target).data, g.size(0))
 
         # compute gradient and do SGD step
         train_loss.backward()
@@ -290,8 +290,8 @@ def validate(val_loader, model, criterion, evaluation, logger=None):
         output = model(g, h, e)
 
         # Logs
-        losses.update(criterion(output, target).data[0], g.size(0))
-        error_ratio.update(evaluation(output, target).data[0], g.size(0))
+        losses.update(criterion(output, target).data, g.size(0))
+        error_ratio.update(evaluation(output, target).data, g.size(0))
 
         # measure elapsed time
         batch_time.update(time.time() - end)

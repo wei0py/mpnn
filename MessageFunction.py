@@ -171,7 +171,7 @@ class MessageFunction(nn.Module):
         edge_output = self.learn_modules[0](e_vw)
         edge_output = edge_output.view(-1, self.args['out'], self.args['in'])
 
-        h_w_rows = h_w[..., None].expand(h_w.size(0), h_v.size(1), h_w.size(1)).contiguous()
+        h_w_rows = h_w[:, None,:].expand(h_w.size(0), h_v.size(1), h_w.size(1)).contiguous()
 
         h_w_rows = h_w_rows.view(-1, self.args['in'])
 
