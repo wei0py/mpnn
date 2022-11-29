@@ -27,6 +27,7 @@ from datasets import utils
 from models.MPNN import MPNN
 from models.MPNN_GGNN import MpnnGGNN
 from models.MPNN_Duvenaud import MpnnDuvenaud
+from models.MPNN_attn import MPNNAttn
 from LogMetric import AverageMeter, Logger
 
 __author__ = "Pau Riba, Anjan Dutta"
@@ -75,6 +76,8 @@ parser.add_argument('--mpnn', action='store_true', default=False,
                     help='choose mpnn')
 parser.add_argument('--ggnn', action='store_true', default=False,
                     help='choose ggnn')                    
+parser.add_argument('--mpnnattn', action='store_true', default=False,
+                    help='choose mpnnattn')   
 
 best_er1 = 0
 
@@ -101,7 +104,7 @@ def main():
     train_ids = [files[i] for i in idx[20:40]]
 
     # MPNN
-    if args.mpnn:
+    if args.mpnn or args.mpnnattn:
         data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
         data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
         data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
@@ -122,6 +125,10 @@ def main():
         print('GGNN') 
         args.logPath = './log/qm9/ggnn/'
         args.resume = './checkpoint/qm9/ggnn/'
+    elif args.mpnnattn:
+        print('mpnnattn') 
+        args.logPath = './log/qm9/mpnnattn/'
+        args.resume = './checkpoint/qm9/mpnnattn/'
     # Select one graph
     g_tuple, l = data_train[0]
     g, h_t, e = g_tuple
@@ -150,8 +157,8 @@ def main():
 
     print('\tCreate model')
     
-    hidden_state_size = 73
-    message_size = 73
+    hidden_state_size = 32
+    message_size = 32
     n_layers = 3
     l_target = len(l)
     type ='regression'
@@ -163,7 +170,10 @@ def main():
         e_in = [q[0] for q in e.values()]
         model = MpnnGGNN(e_in, hidden_state_size, message_size, n_layers, l_target, type=type)
         del hidden_state_size, message_size, n_layers, l_target, type
-
+    if args.mpnnattn:
+        in_n = [len(h_t[0]), len(list(e.values())[0])]
+        model = MPNNAttn(in_n, hidden_state_size, message_size, n_layers, l_target, type=type)
+        del in_n, hidden_state_size, message_size, n_layers, l_target, type
     print('Optimizer')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
