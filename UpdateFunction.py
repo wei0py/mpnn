@@ -108,8 +108,10 @@ class UpdateFunction(nn.Module):
     def u_ggnn(self, h_v, m_v, opt={}):
         h_v.contiguous()
         m_v.contiguous()
-        h_new = self.learn_modules[0](torch.transpose(m_v, 0, 1), torch.unsqueeze(h_v, 0))[0]  # 0 or 1???
-        return torch.transpose(h_new, 0, 1)
+        # h_new = self.learn_modules[0](torch.transpose(m_v, 0, 1), torch.unsqueeze(h_v, 0))[0]  # 0 or 1???
+        # return torch.transpose(h_new, 0, 1)
+        h_new = self.learn_modules[0](m_v[None,...],h_v[None,...])[0] # 0 or 1???
+        return torch.squeeze(h_new).view(h_v.size())
 
     def init_ggnn(self, params):
         learn_args = []
@@ -120,6 +122,7 @@ class UpdateFunction(nn.Module):
         args['out'] = params['out']
 
         # GRU
+        
         learn_modules.append(nn.GRU(params['in_m'], params['out']))
 
         return nn.ParameterList(learn_args), nn.ModuleList(learn_modules), args

@@ -87,7 +87,7 @@ class MpnnGGNN(nn.Module):
                 h_t[:, v, :] = self.u[0].forward(h[t][:, v, :], m)
 
             # Delete virtual nodes
-            h_t = (torch.sum(torch.abs(h_in), 2).expand_as(h_t) > 0).type_as(h_t)*h_t
+            h_t = (torch.sum(torch.abs(h_in), 2, keepdim = True).expand_as(h_t) > 0).type_as(h_t)*h_t
             h.append(h_t.clone())
 
         # Readout

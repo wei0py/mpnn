@@ -6,6 +6,8 @@ Implementation of different models of Neural Networks on graphs as explained in 
 
     $ pip install -r requirements.txt
     $ python main.py
+    $ python main.py --mpnn
+    $ python main.py --ggnn
     
 ## Installation of rdkit
 

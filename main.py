@@ -25,6 +25,8 @@ import numpy as np
 import datasets
 from datasets import utils
 from models.MPNN import MPNN
+from models.MPNN_GGNN import MpnnGGNN
+from models.MPNN_Duvenaud import MpnnDuvenaud
 from LogMetric import AverageMeter, Logger
 
 __author__ = "Pau Riba, Anjan Dutta"
@@ -49,7 +51,7 @@ parser.add_argument('--plotPath', default='./plot/qm9/mpnn/', help='plot path')
 parser.add_argument('--resume', default='./checkpoint/qm9/mpnn/',
                     help='path to latest checkpoint')
 # Optimization Options
-parser.add_argument('--batch-size', type=int, default=100, metavar='N',
+parser.add_argument('--batch-size', type=int, default=10, metavar='N',
                     help='Input batch size for training (default: 20)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='Enables CUDA training')
@@ -68,6 +70,11 @@ parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='How many batches to wait before logging training status')
 # Accelerating
 parser.add_argument('--prefetch', type=int, default=2, help='Pre-fetching threads.')
+
+parser.add_argument('--mpnn', action='store_true', default=False,
+                    help='choose mpnn')
+parser.add_argument('--ggnn', action='store_true', default=False,
+                    help='choose ggnn')                    
 
 best_er1 = 0
 
@@ -89,16 +96,32 @@ def main():
     idx = np.random.permutation(len(files))
     idx = idx.tolist()
 
-    valid_ids = [files[i] for i in idx[0:10000]]
-    test_ids = [files[i] for i in idx[10000:20000]]
-    train_ids = [files[i] for i in idx[20000:]]
+    valid_ids = [files[i] for i in idx[0:10]]
+    test_ids = [files[i] for i in idx[10:20]]
+    train_ids = [files[i] for i in idx[20:40]]
 
-    data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
-    data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
-    data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
-
+    # MPNN
+    if args.mpnn:
+        data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
+        data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
+        data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
+    
+    # GGNN
+    elif args.ggnn:
+        data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation='chem_graph')
+        data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation='chem_graph')
+        data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation='chem_graph')
+    
     # Define model and optimizer
-    print('Define model')
+    print('Define model:')
+    if args.mpnn:
+        print('MPNN')
+        args.logPath = './log/qm9/mpnn/'
+        args.resume = './checkpoint/qm9/mpnn/'
+    elif args.ggnn:
+        print('GGNN') 
+        args.logPath = './log/qm9/ggnn/'
+        args.resume = './checkpoint/qm9/ggnn/'
     # Select one graph
     g_tuple, l = data_train[0]
     g, h_t, e = g_tuple
@@ -126,14 +149,20 @@ def main():
                                               num_workers=args.prefetch, pin_memory=True)
 
     print('\tCreate model')
-    in_n = [len(h_t[0]), len(list(e.values())[0])]
+    
     hidden_state_size = 73
     message_size = 73
     n_layers = 3
     l_target = len(l)
     type ='regression'
-    model = MPNN(in_n, hidden_state_size, message_size, n_layers, l_target, type=type)
-    del in_n, hidden_state_size, message_size, n_layers, l_target, type
+    if args.mpnn:
+        in_n = [len(h_t[0]), len(list(e.values())[0])]
+        model = MPNN(in_n, hidden_state_size, message_size, n_layers, l_target, type=type)
+        del in_n, hidden_state_size, message_size, n_layers, l_target, type
+    if args.ggnn:
+        e_in = [q[0] for q in e.values()]
+        model = MpnnGGNN(e_in, hidden_state_size, message_size, n_layers, l_target, type=type)
+        del hidden_state_size, message_size, n_layers, l_target, type
 
     print('Optimizer')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
