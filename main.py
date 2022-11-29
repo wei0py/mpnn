@@ -78,7 +78,8 @@ parser.add_argument('--ggnn', action='store_true', default=False,
                     help='choose ggnn')                    
 parser.add_argument('--mpnnattn', action='store_true', default=False,
                     help='choose mpnnattn')   
-
+parser.add_argument('--method_attn', type=int, default=1, metavar='N',
+                    help='Number of method (default: 1)')
 best_er1 = 0
 
 
@@ -128,7 +129,7 @@ def main():
     elif args.mpnnattn:
         print('mpnnattn') 
         args.logPath = './log/qm9/mpnnattn/'
-        args.resume = './checkpoint/qm9/mpnnattn/'
+        args.resume = './checkpoint/qm9/mpnnattn/'+str(args.method_attn)+'method/'
     # Select one graph
     g_tuple, l = data_train[0]
     g, h_t, e = g_tuple
@@ -172,7 +173,7 @@ def main():
         del hidden_state_size, message_size, n_layers, l_target, type
     if args.mpnnattn:
         in_n = [len(h_t[0]), len(list(e.values())[0])]
-        model = MPNNAttn(in_n, hidden_state_size, message_size, n_layers, l_target, type=type)
+        model = MPNNAttn(in_n, hidden_state_size, message_size, n_layers, l_target, method=args.method_attn, type=type)
         del in_n, hidden_state_size, message_size, n_layers, l_target, type
     print('Optimizer')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)

@@ -34,7 +34,7 @@ class MPNNAttn(nn.Module):
             Classification | [Regression (default)]. If classification, LogSoftmax layer is applied to the output vector.
     """
 
-    def __init__(self, in_n, hidden_state_size, message_size, n_layers, l_target, method=1,num_heads=3, type='regression'):
+    def __init__(self, in_n, hidden_state_size, message_size, n_layers, l_target, method=3,num_heads=3, type='regression'):
         super(MPNNAttn, self).__init__()
 
         # Define message
@@ -59,6 +59,8 @@ class MPNNAttn(nn.Module):
             self.attn_fc = nn.Linear(2 * hidden_state_size, 1, bias=False)
         if method ==2:
             self.attn_fc = nn.Linear(hidden_state_size, 1, bias=False)
+        if method ==3:
+            self.attn_fc = nn.Linear(hidden_state_size*2+in_n[1], 1, bias=False)
         self.reset_parameters()
         self.type = type
 
@@ -72,13 +74,19 @@ class MPNNAttn(nn.Module):
         nn.init.xavier_normal_(self.fc.weight, gain=gain)
         nn.init.xavier_normal_(self.attn_fc.weight, gain=gain)
     
-    def method(self, z, h0):
+    def method(self, h0, e):
         if self.method_v == 1:
-            return self.method1(z, h0)
+            return self.method1(h0)
         if self.method_v == 2:
-            return self.method2(z, h0)
+            return self.method2(h0)
+        if self.method_v == 3:
+            return self.method3(h0, e)
 
-    def method1(self, z, h0):
+    def method1(self, h0):
+        h_1 = h0.view(-1, h0.size(2))
+        z = self.fc(h_1)
+        # print(z.shape)
+        z = z.view(h0.size(0),h0.size(1),h0.size(2))
         z1 = z.repeat(1, z.size(1), 1)
         z2 = z.repeat_interleave(z.size(1), dim = 1)
 
@@ -93,11 +101,34 @@ class MPNNAttn(nn.Module):
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
         h_t = torch.sum(alpha * z, dim=2)
         return h_t
-    def method2(self, z, h0):
+    def method2(self, h0):
+        h_1 = h0.view(-1, h0.size(2))
+        z = self.fc(h_1)
+        # print(z.shape)
+        z = z.view(h0.size(0),h0.size(1),h0.size(2))
         z1 = z.repeat(1, z.size(1), 1)
         z2 = z.repeat_interleave(z.size(1), dim = 1)
 
         zij = z1*z2
+        # print('zij', zij.size())
+        eij = F.leaky_relu(self.attn_fc(zij))
+        # print('eij', eij.size())
+        alpha = F.softmax(eij, dim=1)
+        # print('alpha', alpha.size())
+        # alpha torch.Size([10, 441, 1])
+        alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
+        z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
+        h_t = torch.sum(alpha * z, dim=2)
+        return h_t
+    def method3(self, h0, e):
+        h_1 = h0.view(-1, h0.size(2))
+        z = self.fc(h_1)
+        # print(z.shape)
+        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z1 = z.repeat(1, z.size(1), 1)
+        z2 = z.repeat_interleave(z.size(1), dim = 1)
+        m = e.view(e.size(0), -1, e.size(3))
+        zij = torch.cat((z1, z2, m), dim= 2)
         # print('zij', zij.size())
         eij = F.leaky_relu(self.attn_fc(zij))
         # print('eij', eij.size())
@@ -121,14 +152,9 @@ class MPNNAttn(nn.Module):
 
         # Layer
         for t in range(0, self.n_layers):
-            # print(h[t].size())
-            h_t = h[t].view(-1, h[t].size(2))
-            z = self.fc(h_t)
-            # print(z.shape)
-            z = z.view(h[t].size(0),h[t].size(1),h[t].size(2))
-            h_t = self.method(z, h[t])
-            
 
+            h_t = self.method(h[t], e)
+            
             h_t = (torch.sum(h_in, 2, keepdim = True).expand_as(h_t) > 0).type_as(h_t) * h_t
             h.append(h_t)
 
