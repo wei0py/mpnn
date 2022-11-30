@@ -103,6 +103,7 @@ def main():
 
     print('Prepare files')
     files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
+    print('Number of files: {}'.format(len(files)))
 
     # fix the datasets for each job
     np.random.seed(3)
@@ -128,7 +129,7 @@ def main():
         data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
         data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
         data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
-    
+
     # Define model and optimizer
     print('Define model:')
     if args.mpnn:
@@ -141,8 +142,8 @@ def main():
         args.resume = './checkpoint/qm9/ggnn/'
     elif args.mpnnattn:
         print('mpnnattn') 
-        args.logPath = './log/qm9/mpnnattn/'
-        args.resume = './checkpoint/qm9/mpnnattn/'+str(args.method_attn)+'method/'
+        args.logPath = './log/qm9/mpnnattn/' + str(args.method_attn) + 'method/'
+        args.resume = './checkpoint/qm9/mpnnattn/' + str(args.method_attn) + 'method/'
     # Select one graph
     g_tuple, l = data_train[0]
     g, h_t, e = g_tuple
@@ -226,7 +227,7 @@ def main():
 
 
     # open the file
-    # f = open(args.job, 'w+')
+    f = open('{}{}'.format(args.logPath, args.job), 'w+')
 
     # Epoch for loop
     for epoch in range(0, args.epochs):
@@ -241,6 +242,8 @@ def main():
 
         # evaluate on test set
         er1, valid_mse = validate(valid_loader, model, criterion, evaluation, logger)
+
+        f.write("{:.3f}\t{:.3f}\t{:.3f}\t{:.3f}\n".format(train_mae, train_mse, er1, valid_mse))
 
         is_best = er1 > best_er1
         best_er1 = min(er1, best_er1)
@@ -271,9 +274,10 @@ def main():
 
     # For testing
     print('Final Test')
-    validate(test_loader, model, criterion, evaluation)
+    test_mae, test_mse = validate(test_loader, model, criterion, evaluation)
+    f.write("{:.3f}\t{:.3f}\t{:.3f}\t{:.3f}\n".format(test_mae, test_mse, test_mae, test_mse))
 
-    # f.close()
+    f.close()
 
 
 def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger=None):
