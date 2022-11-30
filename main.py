@@ -99,6 +99,8 @@ def main():
     print('Prepare files')
     files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
 
+    # fix the datasets for each job
+    np.random.seed(3)
     idx = np.random.permutation(len(files))
     idx = idx.tolist()
 
@@ -182,6 +184,7 @@ def main():
 
     criterion = nn.MSELoss()
 
+    # mean absolute error
     evaluation = lambda output, target: torch.mean(torch.abs(output - target) / torch.abs(target))
 
     print('Logger')
@@ -190,27 +193,31 @@ def main():
     lr_step = (args.lr-args.lr*args.lr_decay)/(args.epochs*args.schedule[1] - args.epochs*args.schedule[0])
 
     # get the best checkpoint if available without training
-    if args.resume:
-        checkpoint_dir = args.resume
-        best_model_file = os.path.join(checkpoint_dir, 'model_best.pth')
-        if not os.path.isdir(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-        if os.path.isfile(best_model_file):
-            print("=> loading best model '{}'".format(best_model_file))
-            checkpoint = torch.load(best_model_file)
-            args.start_epoch = checkpoint['epoch']
-            best_acc1 = checkpoint['best_er1']
-            model.load_state_dict(checkpoint['state_dict'])
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loaded best model '{}' (epoch {})".format(best_model_file, checkpoint['epoch']))
-        else:
-            print("=> no best model found at '{}'".format(best_model_file))
+    # if args.resume:
+    #     checkpoint_dir = args.resume
+    #     best_model_file = os.path.join(checkpoint_dir, 'model_best.pth')
+    #     if not os.path.isdir(checkpoint_dir):
+    #         os.makedirs(checkpoint_dir)
+    #     if os.path.isfile(best_model_file):
+    #         print("=> loading best model '{}'".format(best_model_file))
+    #         checkpoint = torch.load(best_model_file)
+    #         args.start_epoch = checkpoint['epoch']
+    #         best_acc1 = checkpoint['best_er1']
+    #         model.load_state_dict(checkpoint['state_dict'])
+    #         optimizer.load_state_dict(checkpoint['optimizer'])
+    #         print("=> loaded best model '{}' (epoch {})".format(best_model_file, checkpoint['epoch']))
+    #     else:
+    #         print("=> no best model found at '{}'".format(best_model_file))
 
     print('Check cuda')
     if args.cuda:
         print('\t* Cuda')
         model = model.cuda()
         criterion = criterion.cuda()
+
+
+    # open the file
+    
 
     # Epoch for loop
     for epoch in range(0, args.epochs):
@@ -221,10 +228,10 @@ def main():
                 param_group['lr'] = args.lr
 
         # train for one epoch
-        train(train_loader, model, criterion, optimizer, epoch, evaluation, logger)
+        train_mae, train_mse = train(train_loader, model, criterion, optimizer, epoch, evaluation, logger)
 
         # evaluate on test set
-        er1 = validate(valid_loader, model, criterion, evaluation, logger)
+        er1, valid_mse = validate(valid_loader, model, criterion, evaluation, logger)
 
         is_best = er1 > best_er1
         best_er1 = min(er1, best_er1)
@@ -232,32 +239,33 @@ def main():
                                'optimizer': optimizer.state_dict(), }, is_best=is_best, directory=args.resume)
 
         # Logger step
-        logger.log_value('learning_rate', args.lr).step()
+        # logger.log_value('learning_rate', args.lr).step()
 
     # get the best checkpoint and test it with test set
-    if args.resume:
-        checkpoint_dir = args.resume
-        best_model_file = os.path.join(checkpoint_dir, 'model_best.pth')
-        if not os.path.isdir(checkpoint_dir):
-            os.makedirs(checkpoint_dir)
-        if os.path.isfile(best_model_file):
-            print("=> loading best model '{}'".format(best_model_file))
-            checkpoint = torch.load(best_model_file)
-            args.start_epoch = checkpoint['epoch']
-            best_acc1 = checkpoint['best_er1']
-            model.load_state_dict(checkpoint['state_dict'])
-            if args.cuda:
-                model.cuda()
-            optimizer.load_state_dict(checkpoint['optimizer'])
-            print("=> loaded best model '{}' (epoch {})".format(best_model_file, checkpoint['epoch']))
-        else:
-            print("=> no best model found at '{}'".format(best_model_file))
+    # if args.resume:
+    #     checkpoint_dir = args.resume
+    #     best_model_file = os.path.join(checkpoint_dir, 'model_best.pth')
+    #     if not os.path.isdir(checkpoint_dir):
+    #         os.makedirs(checkpoint_dir)
+    #     if os.path.isfile(best_model_file):
+    #         print("=> loading best model '{}'".format(best_model_file))
+    #         checkpoint = torch.load(best_model_file)
+    #         args.start_epoch = checkpoint['epoch']
+    #         best_acc1 = checkpoint['best_er1']
+    #         model.load_state_dict(checkpoint['state_dict'])
+    #         if args.cuda:
+    #             model.cuda()
+    #         optimizer.load_state_dict(checkpoint['optimizer'])
+    #         print("=> loaded best model '{}' (epoch {})".format(best_model_file, checkpoint['epoch']))
+    #     else:
+    #         print("=> no best model found at '{}'".format(best_model_file))
 
     # For testing
+    print('Final Test')
     validate(test_loader, model, criterion, evaluation)
 
 
-def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger):
+def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger=None):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -295,21 +303,23 @@ def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.log_interval == 0 and i > 0:
+        # if i % args.log_interval == 0 and i > 0:
 
-            print('Epoch: [{0}][{1}/{2}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Error Ratio {err.val:.4f} ({err.avg:.4f})'
-                  .format(epoch, i, len(train_loader), batch_time=batch_time,
-                          data_time=data_time, loss=losses, err=error_ratio))
+        #     print('Epoch: [{0}][{1}/{2}]\t'
+        #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+        #           'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
+        #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+        #           'Error Ratio {err.val:.4f} ({err.avg:.4f})'
+        #           .format(epoch, i, len(train_loader), batch_time=batch_time,
+        #                   data_time=data_time, loss=losses, err=error_ratio))
                           
-    logger.log_value('train_epoch_loss', losses.avg)
-    logger.log_value('train_epoch_error_ratio', error_ratio.avg)
+    # logger.log_value('train_epoch_loss', losses.avg)
+    # logger.log_value('train_epoch_error_ratio', error_ratio.avg)
 
     print('Epoch: [{0}] Avg Error Ratio {err.avg:.3f}; Average Loss {loss.avg:.3f}; Avg Time x Batch {b_time.avg:.3f}'
           .format(epoch, err=error_ratio, loss=losses, b_time=batch_time))
+
+    return error_ratio.avg, losses.avg
 
 
 def validate(val_loader, model, criterion, evaluation, logger=None):
@@ -339,14 +349,14 @@ def validate(val_loader, model, criterion, evaluation, logger=None):
         batch_time.update(time.time() - end)
         end = time.time()
 
-        if i % args.log_interval == 0 and i > 0:
+        # if i % args.log_interval == 0 and i > 0:
             
-            print('Test: [{0}/{1}]\t'
-                  'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
-                  'Error Ratio {err.val:.4f} ({err.avg:.4f})'
-                  .format(i, len(val_loader), batch_time=batch_time,
-                          loss=losses, err=error_ratio))
+        #     print('Test: [{0}/{1}]\t'
+        #           'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+        #           'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
+        #           'Error Ratio {err.val:.4f} ({err.avg:.4f})'
+        #           .format(i, len(val_loader), batch_time=batch_time,
+        #                   loss=losses, err=error_ratio))
 
     print(' * Average Error Ratio {err.avg:.3f}; Average Loss {loss.avg:.3f}'
           .format(err=error_ratio, loss=losses))
@@ -355,7 +365,7 @@ def validate(val_loader, model, criterion, evaluation, logger=None):
         logger.log_value('test_epoch_loss', losses.avg)
         logger.log_value('test_epoch_error_ratio', error_ratio.avg)
 
-    return error_ratio.avg
+    return error_ratio.avg, losses.avg
 
     
 if __name__ == '__main__':
