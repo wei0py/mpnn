@@ -8,8 +8,9 @@ Implementation of different models of Neural Networks on graphs as explained in 
     $ python main.py
     $ python main.py --mpnn
     $ python main.py --ggnn
-    $ python main.py --epochs 4 --mpnnattn --method_attn 1 --num_heads 4
-    (method 1,2,3 supported now)
+    $ python main.py --epochs 4 --mpnnattn --method_attn 1 --num_heads 4 --e_rep 4
+    (method 1,2,3, 4, 5 supported now)
+    (e_rep: 1-5 supported now)
     
 ## Installation of rdkit
 

@@ -118,8 +118,11 @@ class MPNNSingleHAttn(nn.Module):
             self.attn_fc = nn.Linear(hidden_state_size, 1, bias=False)
         if method ==3:
             self.attn_fc = nn.Linear(hidden_state_size*2+in_n[1], 1, bias=False)
+        if method ==4:
+            self.attn_fc = nn.Linear(in_n[1], 1, bias=False)
+        if method ==5:
+            self.attn_fc = nn.Linear(2 * hidden_state_size, 1, bias=False)
         self.reset_parameters()
-
 
     def reset_parameters(self):
         """Reinitialize learnable parameters."""
@@ -134,6 +137,10 @@ class MPNNSingleHAttn(nn.Module):
             return self.method2(h0)
         if self.method_v == 3:
             return self.method3(h0, e)
+        if self.method_v == 4:
+            return self.method4(h0, e)
+        if self.method_v == 5:
+            return self.method5(h0, e)
 
     def method1(self, h0):
         h_1 = h0.view(-1, h0.size(2))
@@ -152,8 +159,9 @@ class MPNNSingleHAttn(nn.Module):
         # alpha torch.Size([10, 441, 1])
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sum(alpha * z, dim=2)
+        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
         return h_t
+
     def method2(self, h0):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
@@ -171,8 +179,9 @@ class MPNNSingleHAttn(nn.Module):
         # alpha torch.Size([10, 441, 1])
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sum(alpha * z, dim=2)
+        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
         return h_t
+
     def method3(self, h0, e):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
@@ -182,15 +191,37 @@ class MPNNSingleHAttn(nn.Module):
         z2 = z.repeat_interleave(z.size(1), dim = 1)
         m = e.view(e.size(0), -1, e.size(3))
         zij = torch.cat((z1, z2, m), dim= 2)
-        # print('zij', zij.size())
         eij = F.leaky_relu(self.attn_fc(zij))
-        # print('eij', eij.size())
         alpha = F.softmax(eij, dim=1)
-        # print('alpha', alpha.size())
-        # alpha torch.Size([10, 441, 1])
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sum(alpha * z, dim=2)
+        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        return h_t
+
+    def method4(self, h0, e):
+        h_1 = h0.view(-1, h0.size(2))
+        z = self.fc(h_1)
+        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        edij = e.view(e.size(0), -1, e.size(3))
+        eij = F.leaky_relu(self.attn_fc(edij))
+        alpha = F.softmax(eij, dim=1)
+        alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
+        z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
+        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        return h_t
+
+    def method5(self, h0, e):
+        h_1 = h0.view(-1, h0.size(2))
+        z = self.fc(h_1)
+        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z1 = z.repeat(1, z.size(1), 1)
+        z2 = z.repeat_interleave(z.size(1), dim = 1)
+        zij = torch.cat((z1, z2), dim= 2)
+        eij = self.attn_fc(F.leaky_relu(zij))
+        alpha = F.softmax(eij, dim=1)
+        alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
+        z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
+        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
         return h_t
 
 

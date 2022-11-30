@@ -78,10 +78,13 @@ parser.add_argument('--ggnn', action='store_true', default=False,
                     help='choose ggnn')                    
 parser.add_argument('--mpnnattn', action='store_true', default=False,
                     help='choose mpnnattn')   
-parser.add_argument('--method_attn', type=int, default=1, metavar='N',
+parser.add_argument('--method_attn', type=int, default=1, metavar='M',
                     help='Number of method (default: 1)')
-parser.add_argument('--num_heads', type=int, default=1, metavar='N',
+parser.add_argument('--num_heads', type=int, default=1, metavar='NH',
                     help='Number of heads (default: 1)')
+parser.add_argument('--e_rep', type=int, default=1, metavar='EP',
+                    help='e_presentation (default: 1:raw_distance) 1:raw_distance, 2:chem_graph, 3:distance_bin, 4:all_distance, 5:decay_distance')
+
 best_er1 = 0
 
 
@@ -108,17 +111,21 @@ def main():
     test_ids = [files[i] for i in idx[10:20]]
     train_ids = [files[i] for i in idx[20:40]]
 
-    # MPNN
-    if args.mpnn or args.mpnnattn:
-        data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
-        data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
-        data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation='raw_distance')
-    
-    # GGNN
-    elif args.ggnn:
+    e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance"}
+    try:
+        use_e_rep = e_reps[args.e_rep]
+    except:
+        print("input error: choose correct e_representation")
+        
+
+    if args.ggnn:
         data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation='chem_graph')
         data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation='chem_graph')
         data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation='chem_graph')
+    else:
+        data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
+        data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
+        data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
     
     # Define model and optimizer
     print('Define model:')
