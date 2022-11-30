@@ -51,14 +51,16 @@ parser.add_argument('--plotLr', default=False, help='allow plotting the data')
 parser.add_argument('--plotPath', default='./plot/qm9/mpnn/', help='plot path')
 parser.add_argument('--resume', default='./checkpoint/qm9/mpnn/',
                     help='path to latest checkpoint')
+parser.add_argument('--job', default='new_job',
+                    help='job title for current run')
 # Optimization Options
-parser.add_argument('--batch-size', type=int, default=10, metavar='N',
+parser.add_argument('--batch-size', type=int, default=20, metavar='N',
                     help='Input batch size for training (default: 20)')
 parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='Enables CUDA training')
 parser.add_argument('--epochs', type=int, default=360, metavar='N',
                     help='Number of epochs to train (default: 360)')
-parser.add_argument('--lr', type=lambda x: restricted_float(x, [1e-5, 1e-2]), default=1e-3, metavar='LR',
+parser.add_argument('--lr', type=lambda x: restricted_float(x, [1e-5, 1e-2]), default=1e-4, metavar='LR',
                     help='Initial learning rate [1e-5, 5e-4] (default: 1e-4)')
 parser.add_argument('--lr-decay', type=lambda x: restricted_float(x, [.01, 1]), default=0.6, metavar='LR-DECAY',
                     help='Learning rate decay factor [.01, 1] (default: 0.6)')
@@ -107,9 +109,9 @@ def main():
     idx = np.random.permutation(len(files))
     idx = idx.tolist()
 
-    valid_ids = [files[i] for i in idx[0:10]]
-    test_ids = [files[i] for i in idx[10:20]]
-    train_ids = [files[i] for i in idx[20:40]]
+    valid_ids = [files[i] for i in idx[0:10000]]
+    test_ids = [files[i] for i in idx[10000:20000]]
+    train_ids = [files[i] for i in idx[20000:]]
 
     e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance"}
     try:
@@ -224,7 +226,7 @@ def main():
 
 
     # open the file
-    
+    # f = open(args.job, 'w+')
 
     # Epoch for loop
     for epoch in range(0, args.epochs):
@@ -270,6 +272,8 @@ def main():
     # For testing
     print('Final Test')
     validate(test_loader, model, criterion, evaluation)
+
+    # f.close()
 
 
 def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger=None):
