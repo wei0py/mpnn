@@ -39,9 +39,9 @@ class MPNNAttn(nn.Module):
 
         # Define message
         if num_heads == 1:
-            self.m = MPNNSingleHAttn(in_n, hidden_state_size,method)
+            self.m = nn.ModuleList([MPNNSingleHAttn(in_n, hidden_state_size,method)])
         else:
-            self.m = MPNNMultiHAttn(in_n, hidden_state_size,method, num_heads)
+            self.m = nn.ModuleList([MPNNMultiHAttn(in_n, hidden_state_size,method, num_heads)])
 
         # Define Readout
         self.r = ReadoutFunction('mpnn',
@@ -70,7 +70,7 @@ class MPNNAttn(nn.Module):
         # Layer
         for t in range(0, self.n_layers):
 
-            h_t = self.m(h[t], e)
+            h_t = self.m[0](h[t], e)
             h_t = (torch.sum(h_in, 2, keepdim = True).expand_as(h_t) > 0).type_as(h_t) * h_t
             h.append(h_t)
 
