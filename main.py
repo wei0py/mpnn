@@ -80,6 +80,8 @@ parser.add_argument('--mpnnattn', action='store_true', default=False,
                     help='choose mpnnattn')   
 parser.add_argument('--method_attn', type=int, default=1, metavar='N',
                     help='Number of method (default: 1)')
+parser.add_argument('--num_heads', type=int, default=1, metavar='N',
+                    help='Number of heads (default: 1)')
 best_er1 = 0
 
 
@@ -173,7 +175,7 @@ def main():
         del hidden_state_size, message_size, n_layers, l_target, type
     if args.mpnnattn:
         in_n = [len(h_t[0]), len(list(e.values())[0])]
-        model = MPNNAttn(in_n, hidden_state_size, message_size, n_layers, l_target, method=args.method_attn, type=type)
+        model = MPNNAttn(in_n, hidden_state_size, message_size, n_layers, l_target, method=args.method_attn, num_heads=args.num_heads, type=type)
         del in_n, hidden_state_size, message_size, n_layers, l_target, type
     print('Optimizer')
     optimizer = optim.Adam(model.parameters(), lr=args.lr)

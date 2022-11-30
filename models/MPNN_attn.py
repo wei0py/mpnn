@@ -38,13 +38,10 @@ class MPNNAttn(nn.Module):
         super(MPNNAttn, self).__init__()
 
         # Define message
-        self.m = nn.ModuleList(
-            [MessageFunction('mpnn', args={'edge_feat': in_n[1], 'in': hidden_state_size, 'out': message_size})])
-
-        # Define Update
-        self.u = nn.ModuleList([UpdateFunction('mpnn',
-                                               args={'in_m': message_size,
-                                                     'out': hidden_state_size})])
+        if num_heads == 1:
+            self.m = MPNNSingleHAttn(in_n, hidden_state_size,method)
+        else:
+            self.m = MPNNMultiHAttn(in_n, hidden_state_size,method, num_heads)
 
         # Define Readout
         self.r = ReadoutFunction('mpnn',
@@ -52,6 +49,66 @@ class MPNNAttn(nn.Module):
                                        'target': l_target})
         # self.g = g
         # equation (1)
+        self.fc = nn.Linear(hidden_state_size, hidden_state_size, bias=False)
+        
+        self.type = type
+
+        self.args = {}
+        self.args['out'] = hidden_state_size
+        self.n_layers = n_layers
+
+    def forward(self, g, h_in, e):
+
+        h = []
+
+        # Padding to some larger dimension d
+        h_t = torch.cat([h_in, Variable(
+            torch.zeros(h_in.size(0), h_in.size(1), self.args['out'] - h_in.size(2)).type_as(h_in.data))], 2)
+
+        h.append(h_t.clone())
+
+        # Layer
+        for t in range(0, self.n_layers):
+
+            h_t = self.m(h[t], e)
+            h_t = (torch.sum(h_in, 2, keepdim = True).expand_as(h_t) > 0).type_as(h_t) * h_t
+            h.append(h_t)
+
+        # Readout
+        res = self.r.forward(h)
+
+        if self.type == 'classification':
+            res = nn.LogSoftmax()(res)
+        return res
+
+
+class MPNNSingleHAttn(nn.Module):
+    """
+        MPNN as proposed by Gilmer et al..
+
+        This class implements the whole Gilmer et al. model following the functions Message, Update and Readout.
+
+        Parameters
+        ----------
+        in_n : int list
+            Sizes for the node and edge features.
+        hidden_state_size : int
+            Size of the hidden states (the input will be padded with 0's to this size).
+        message_size : int
+            Message function output vector size.
+        n_layers : int
+            Number of iterations Message+Update (weight tying).
+        l_target : int
+            Size of the output.
+        type : str (Optional)
+            Classification | [Regression (default)]. If classification, LogSoftmax layer is applied to the output vector.
+    """
+
+    def __init__(self, in_n, hidden_state_size,  method=3):
+        super(MPNNSingleHAttn, self).__init__()
+
+        # equation (1)
+
         self.fc = nn.Linear(hidden_state_size, hidden_state_size, bias=False)
         # equation (2)
         self.method_v = method
@@ -62,11 +119,7 @@ class MPNNAttn(nn.Module):
         if method ==3:
             self.attn_fc = nn.Linear(hidden_state_size*2+in_n[1], 1, bias=False)
         self.reset_parameters()
-        self.type = type
 
-        self.args = {}
-        self.args['out'] = hidden_state_size
-        self.n_layers = n_layers
 
     def reset_parameters(self):
         """Reinitialize learnable parameters."""
@@ -74,7 +127,7 @@ class MPNNAttn(nn.Module):
         nn.init.xavier_normal_(self.fc.weight, gain=gain)
         nn.init.xavier_normal_(self.attn_fc.weight, gain=gain)
     
-    def method(self, h0, e):
+    def forward(self, h0, e):
         if self.method_v == 1:
             return self.method1(h0)
         if self.method_v == 2:
@@ -140,27 +193,36 @@ class MPNNAttn(nn.Module):
         h_t = torch.sum(alpha * z, dim=2)
         return h_t
 
-    def forward(self, g, h_in, e):
 
-        h = []
 
-        # Padding to some larger dimension d
-        h_t = torch.cat([h_in, Variable(
-            torch.zeros(h_in.size(0), h_in.size(1), self.args['out'] - h_in.size(2)).type_as(h_in.data))], 2)
 
-        h.append(h_t.clone())
+class MPNNMultiHAttn(nn.Module):
+    """
 
-        # Layer
-        for t in range(0, self.n_layers):
+        Parameters
+        ----------
+        in_n : int list
+            Sizes for the node and edge features.
+        hidden_state_size : int
+            Size of the hidden states (the input will be padded with 0's to this size).
+        
+    """
 
-            h_t = self.method(h[t], e)
-            
-            h_t = (torch.sum(h_in, 2, keepdim = True).expand_as(h_t) > 0).type_as(h_t) * h_t
-            h.append(h_t)
+    def __init__(self, in_n, hidden_state_size, method=3,num_heads=3, merge= 'mean'):
+        super(MPNNMultiHAttn, self).__init__()
 
-        # Readout
-        res = self.r.forward(h)
+        # self.g = g
+        # equation (1)
+        self.heads = nn.ModuleList()
+        for i in range(num_heads):
+            self.heads.append(MPNNSingleHAttn(in_n, hidden_state_size,  method))
+        self.merge = merge
 
-        if self.type == 'classification':
-            res = nn.LogSoftmax()(res)
-        return res
+
+    def forward(self, h_in, e):
+        heads_out = [attn_head(h_in, e) for attn_head in self.heads]
+        if self.merge == 'cat':
+            return torch.cat(heads_out, dim=1)
+        else:
+            return torch.mean(torch.stack(heads_out), axis = 0)
+
