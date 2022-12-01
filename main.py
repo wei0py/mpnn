@@ -20,6 +20,7 @@ import time
 import argparse
 import os
 import numpy as np
+import json
 
 # Our Modules
 import datasets
@@ -41,10 +42,12 @@ def restricted_float(x, inter):
         raise argparse.ArgumentTypeError("%r not in range [1e-5, 1e-4]"%(x,))
     return x
 
+
 # Argument parser
 parser = argparse.ArgumentParser(description='Neural message passing')
 
 parser.add_argument('--dataset', default='qm9', help='QM9')
+parser.add_argument('--colabDataPath', default='./data/qm9/drive/', help='dataset path when using colab')
 parser.add_argument('--datasetPath', default='./data/qm9/dsgdb9nsd/', help='dataset path')
 parser.add_argument('--logPath', default='./log/qm9/mpnn/', help='log path')
 parser.add_argument('--plotLr', default=False, help='allow plotting the data')
@@ -71,6 +74,9 @@ parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
 # i/o
 parser.add_argument('--log-interval', type=int, default=20, metavar='N',
                     help='How many batches to wait before logging training status')
+
+parser.add_argument('--colab', action='store_true', default=False,
+                    help='are you using colab to run?')
 # Accelerating
 parser.add_argument('--prefetch', type=int, default=2, help='Pre-fetching threads.')
 
@@ -87,6 +93,7 @@ parser.add_argument('--num_heads', type=int, default=1, metavar='NH',
 parser.add_argument('--e_rep', type=int, default=1, metavar='EP',
                     help='e_presentation (default: 1:raw_distance) 1:raw_distance, 2:chem_graph, 3:distance_bin, 4:all_distance, 5:decay_distance')
 
+
 best_er1 = 0
 
 
@@ -102,16 +109,23 @@ def main():
     root = args.datasetPath
 
     print('Prepare files')
-    files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
+    if args.colab:
+        files = []
+        for i in range(100):
+            for f in os.listdir('{}{}'.format(args.colabDataPath, i)):
+                files.append(f)
+    else:
+        files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
+    print('Number of files: {}'.format(len(files)))
 
     # fix the datasets for each job
     np.random.seed(3)
     idx = np.random.permutation(len(files))
     idx = idx.tolist()
 
-    valid_ids = [files[i] for i in idx[0:10000]]
-    test_ids = [files[i] for i in idx[10000:20000]]
-    train_ids = [files[i] for i in idx[20000:]]
+    valid_ids = [files[i] for i in idx[0:1000]]
+    test_ids = [files[i] for i in idx[1000:2000]]
+    train_ids = [files[i] for i in idx[2000:10000]]
 
     e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance"}
     try:
@@ -128,7 +142,7 @@ def main():
         data_train = datasets.Qm9(root, train_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
         data_valid = datasets.Qm9(root, valid_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
         data_test = datasets.Qm9(root, test_ids, edge_transform=utils.qm9_edges, e_representation=use_e_rep)
-    
+
     # Define model and optimizer
     print('Define model:')
     if args.mpnn:
@@ -146,6 +160,10 @@ def main():
     # Select one graph
     g_tuple, l = data_train[0]
     g, h_t, e = g_tuple
+
+    print('Save parameters')
+    with open('{}commandline_args.txt'.format(args.logPath), 'w') as f:
+        json.dump(args.__dict__, f, indent=2)
 
     print('\tStatistics')
     stat_dict = datasets.utils.get_graph_stats(data_valid, ['target_mean', 'target_std'])
@@ -226,7 +244,7 @@ def main():
 
 
     # open the file
-    # f = open(args.job, 'w+')
+    f = open(args.job, 'w+')
 
     # Epoch for loop
     for epoch in range(0, args.epochs):
@@ -241,6 +259,8 @@ def main():
 
         # evaluate on test set
         er1, valid_mse = validate(valid_loader, model, criterion, evaluation, logger)
+
+        f.write("{}\t{}\t{}\t{}".format(train_mae, train_mse, er1, valid_mse))
 
         is_best = er1 > best_er1
         best_er1 = min(er1, best_er1)
@@ -271,9 +291,10 @@ def main():
 
     # For testing
     print('Final Test')
-    validate(test_loader, model, criterion, evaluation)
+    test_mae, test_mse = validate(test_loader, model, criterion, evaluation)
+    f.write("{}\t{}\t{}\t{}".format(test_mae, test_mse, test_mae, test_mse))
 
-    # f.close()
+    f.close()
 
 
 def train(train_loader, model, criterion, optimizer, epoch, evaluation, logger=None):
