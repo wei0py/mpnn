@@ -54,7 +54,7 @@ parser.add_argument('--plotLr', default=False, help='allow plotting the data')
 parser.add_argument('--plotPath', default='./plot/qm9/mpnn/', help='plot path')
 parser.add_argument('--resume', default='./checkpoint/qm9/mpnn/',
                     help='path to latest checkpoint')
-parser.add_argument('--job', default='new_job',
+parser.add_argument('--job', type=int, default=0,
                     help='job title for current run')
 # Optimization Options
 parser.add_argument('--batch-size', type=int, default=20, metavar='N',
@@ -115,7 +115,7 @@ def main():
             for f in os.listdir('{}{}'.format(args.colabDataPath, i)):
                 files.append(f)
     else:
-        files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))][13380:28098]
+        files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
     print('Number of files: {}'.format(len(files)))
 
     # fix the datasets for each job
@@ -125,7 +125,7 @@ def main():
 
     valid_ids = [files[i] for i in idx[0:1000]]
     test_ids = [files[i] for i in idx[1000:2000]]
-    train_ids = [files[i] for i in idx[2000:]]
+    train_ids = [files[i] for i in idx[2000:10000]]
 
     e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance", 6:"two_distance"}
     try:
@@ -162,7 +162,7 @@ def main():
     g, h_t, e = g_tuple
 
     print('Save parameters')
-    with open('{}commandline_args.txt'.format(args.logPath), 'w') as f:
+    with open('commandline_args'+str(args.job)+str(time.time()), 'w+') as f:
         json.dump(args.__dict__, f, indent=2)
 
     print('\tStatistics')
