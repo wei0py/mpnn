@@ -91,7 +91,7 @@ parser.add_argument('--method_attn', type=int, default=1, metavar='M',
 parser.add_argument('--num_heads', type=int, default=1, metavar='NH',
                     help='Number of heads (default: 1)')
 parser.add_argument('--e_rep', type=int, default=1, metavar='EP',
-                    help='e_presentation (default: 1:raw_distance) 1:raw_distance, 2:chem_graph, 3:distance_bin, 4:all_distance, 5:decay_distance')
+                    help='e_presentation (default: 1:raw_distance) 1:raw_distance, 2:chem_graph, 3:distance_bin, 4:all_distance, 5:decay_distance, 6:two_distance')
 
 
 best_er1 = 0
@@ -127,7 +127,7 @@ def main():
     test_ids = [files[i] for i in idx[1000:2000]]
     train_ids = [files[i] for i in idx[2000:]]
 
-    e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance"}
+    e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance", 6:"two_distance"}
     try:
         use_e_rep = e_reps[args.e_rep]
     except:
