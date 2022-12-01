@@ -260,7 +260,7 @@ def main():
         # evaluate on test set
         er1, valid_mse = validate(valid_loader, model, criterion, evaluation, logger)
 
-        f.write("{}\t{}\t{}\t{}".format(train_mae, train_mse, er1, valid_mse))
+        f.write("{:.3f}\t{:.3f}\t{:.3f}\t{:.3f}\n".format(train_mae, train_mse, er1, valid_mse))
 
         is_best = er1 > best_er1
         best_er1 = min(er1, best_er1)
@@ -292,7 +292,7 @@ def main():
     # For testing
     print('Final Test')
     test_mae, test_mse = validate(test_loader, model, criterion, evaluation)
-    f.write("{}\t{}\t{}\t{}".format(test_mae, test_mse, test_mae, test_mse))
+    f.write("{:.3f}\t{:.3f}\t{:.3f}\t{:.3f}\n".format(test_mae, test_mse, test_mae, test_mse))
 
     f.close()
 
