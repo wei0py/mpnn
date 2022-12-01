@@ -111,11 +111,11 @@ def main():
     print('Prepare files')
     if args.colab:
         files = []
-        for i in range(100):
+        for i in range(10, 21):
             for f in os.listdir('{}{}'.format(args.colabDataPath, i)):
                 files.append(f)
     else:
-        files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))]
+        files = [f for f in os.listdir(root) if os.path.isfile(os.path.join(root, f))][13380:28098]
     print('Number of files: {}'.format(len(files)))
 
     # fix the datasets for each job
@@ -125,7 +125,7 @@ def main():
 
     valid_ids = [files[i] for i in idx[0:1000]]
     test_ids = [files[i] for i in idx[1000:2000]]
-    train_ids = [files[i] for i in idx[2000:10000]]
+    train_ids = [files[i] for i in idx[2000:]]
 
     e_reps = {1:"raw_distance", 2:"chem_graph", 3:"distance_bin", 4:"all_distance", 5:"decay_distance"}
     try:
