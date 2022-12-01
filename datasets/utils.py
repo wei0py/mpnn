@@ -101,7 +101,19 @@ def qm9_edges(g, e_representation='raw_distance'):
                     e_t.append(1/d['distance'])
                     e_t += [int(d['b_type'] == x) for x in [rdkit.Chem.rdchem.BondType.SINGLE, rdkit.Chem.rdchem.BondType.DOUBLE,
                                                             rdkit.Chem.rdchem.BondType.TRIPLE, rdkit.Chem.rdchem.BondType.AROMATIC]]
-
+        elif e_representation == 'two_distance':
+            if d['b_type'] is None:
+                if d['distance'] == 0:
+                    e_t = [0.0, 0.0, 0, 0, 0, 0]
+                else:
+                    e_t.append(d['distance'])
+                    e_t.append(1/d['distance'])
+                    e_t += [0 for _ in range(4)]
+            else:
+                    e_t.append(d['distance'])
+                    e_t.append(1/d['distance'])
+                    e_t += [int(d['b_type'] == x) for x in [rdkit.Chem.rdchem.BondType.SINGLE, rdkit.Chem.rdchem.BondType.DOUBLE,
+                                                            rdkit.Chem.rdchem.BondType.TRIPLE, rdkit.Chem.rdchem.BondType.AROMATIC]]
         else:
             print('Incorrect Edge representation transform')
             quit()
