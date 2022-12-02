@@ -38,10 +38,11 @@ class MPNNAttn(nn.Module):
         super(MPNNAttn, self).__init__()
 
         # Define message
+        self.m = nn.ModuleList()
         if num_heads == 1:
-            self.m = nn.ModuleList([MPNNMultiHAttn(in_n, hidden_state_size,hidden_state_size, method, num_heads=1, merge='mean')])
+            for _ in range(n_layers):
+                self.m.append(MPNNMultiHAttn(in_n, hidden_state_size,hidden_state_size, method, num_heads=1, merge='mean'))
         else:
-            self.m = nn.ModuleList()
             self.m.append(MPNNMultiHAttn(in_n, hidden_state_size, hidden_state_size, method, num_heads, merge='cat'))
             for _ in range(1, n_layers-1):
                 self.m.append(MPNNMultiHAttn(in_n, hidden_state_size*num_heads, hidden_state_size, method, num_heads, merge='cat'))
