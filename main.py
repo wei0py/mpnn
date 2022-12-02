@@ -54,6 +54,8 @@ parser.add_argument('--plotLr', default=False, help='allow plotting the data')
 parser.add_argument('--plotPath', default='./plot/qm9/mpnn/', help='plot path')
 parser.add_argument('--resume', default='./checkpoint/qm9/mpnn/',
                     help='path to latest checkpoint')
+parser.add_argument('--continueT', action='store_true', default=False,
+                    help='whether to latest checkpoint')
 parser.add_argument('--job', type=int, default=0,
                     help='job title for current run')
 # Optimization Options
@@ -148,7 +150,7 @@ def main():
     if args.mpnn:
         print('MPNN')
         args.logPath = './log/qm9/mpnn/'
-        args.resume = './checkpoint/qm9/mpnn/'
+        args.resume = './checkpoint/qm9/mpnn/'+'job'+str(args.job)+'/'
     elif args.ggnn:
         print('GGNN') 
         args.logPath = './log/qm9/ggnn/'
@@ -156,7 +158,7 @@ def main():
     elif args.mpnnattn:
         print('mpnnattn') 
         args.logPath = './log/qm9/mpnnattn/'
-        args.resume = './checkpoint/qm9/mpnnattn/'+str(args.method_attn)+'method/'
+        args.resume = './checkpoint/qm9/mpnnattn/'+str(args.method_attn)+'method/job'+str(args.job)+'/'
     # Select one graph
     g_tuple, l = data_train[0]
     g, h_t, e = g_tuple
@@ -220,21 +222,21 @@ def main():
     lr_step = (args.lr-args.lr*args.lr_decay)/(args.epochs*args.schedule[1] - args.epochs*args.schedule[0])
 
     # get the best checkpoint if available without training
-    # if args.resume:
-    #     checkpoint_dir = args.resume
-    #     best_model_file = os.path.join(checkpoint_dir, 'model_best.pth')
-    #     if not os.path.isdir(checkpoint_dir):
-    #         os.makedirs(checkpoint_dir)
-    #     if os.path.isfile(best_model_file):
-    #         print("=> loading best model '{}'".format(best_model_file))
-    #         checkpoint = torch.load(best_model_file)
-    #         args.start_epoch = checkpoint['epoch']
-    #         best_acc1 = checkpoint['best_er1']
-    #         model.load_state_dict(checkpoint['state_dict'])
-    #         optimizer.load_state_dict(checkpoint['optimizer'])
-    #         print("=> loaded best model '{}' (epoch {})".format(best_model_file, checkpoint['epoch']))
-    #     else:
-    #         print("=> no best model found at '{}'".format(best_model_file))
+    if args.continueT:
+        checkpoint_dir = args.resume
+        best_model_file = os.path.join(checkpoint_dir, 'model_best.pth')
+        if not os.path.isdir(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+        if os.path.isfile(best_model_file):
+            print("=> loading best model '{}'".format(best_model_file))
+            checkpoint = torch.load(best_model_file)
+            args.start_epoch = checkpoint['epoch']
+            best_acc1 = checkpoint['best_er1']
+            model.load_state_dict(checkpoint['state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer'])
+            print("=> loaded best model '{}' (epoch {})".format(best_model_file, checkpoint['epoch']))
+        else:
+            print("=> no best model found at '{}'".format(best_model_file))
 
     print('Check cuda')
     if args.cuda:
