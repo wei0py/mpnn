@@ -244,7 +244,7 @@ def main():
 
 
     # open the file
-    f = open(args.job, 'w+')
+    f = open(str(args.job)+'.txt', 'w+')
 
     # Epoch for loop
     for epoch in range(0, args.epochs):

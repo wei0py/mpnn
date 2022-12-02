@@ -34,14 +34,19 @@ class MPNNAttn(nn.Module):
             Classification | [Regression (default)]. If classification, LogSoftmax layer is applied to the output vector.
     """
 
-    def __init__(self, in_n, hidden_state_size, message_size, n_layers, l_target, method=3,num_heads=3, type='regression'):
+    def __init__(self, in_n, hidden_state_size, message_size, n_layers, l_target, method=3,num_heads=8, type='regression'):
         super(MPNNAttn, self).__init__()
 
         # Define message
         if num_heads == 1:
-            self.m = nn.ModuleList([MPNNSingleHAttn(in_n, hidden_state_size,method)])
+            self.m = nn.ModuleList([MPNNSingleHAttn(in_n, hidden_state_size,hidden_state_size, method)])
         else:
-            self.m = nn.ModuleList([MPNNMultiHAttn(in_n, hidden_state_size,method, num_heads)])
+            self.m = nn.ModuleList()
+            self.m.append(MPNNMultiHAttn(in_n, hidden_state_size, hidden_state_size, method, num_heads, merge='cat'))
+            for _ in range(1, n_layers-1):
+                self.m.append(MPNNMultiHAttn(in_n, hidden_state_size*num_heads, hidden_state_size, method, num_heads, merge='cat'))
+            self.m.append(MPNNMultiHAttn(in_n, hidden_state_size*num_heads, hidden_state_size, method, num_heads, merge='mean'))
+            
 
         # Define Readout
         self.r = ReadoutFunction('mpnn',
@@ -69,8 +74,7 @@ class MPNNAttn(nn.Module):
 
         # Layer
         for t in range(0, self.n_layers):
-
-            h_t = self.m[0](h[t], e)
+            h_t = self.m[t](h[t], e)
             h_t = (torch.sum(h_in, 2, keepdim = True).expand_as(h_t) > 0).type_as(h_t) * h_t
             h.append(h_t)
 
@@ -104,24 +108,24 @@ class MPNNSingleHAttn(nn.Module):
             Classification | [Regression (default)]. If classification, LogSoftmax layer is applied to the output vector.
     """
 
-    def __init__(self, in_n, hidden_state_size,  method=3):
+    def __init__(self, in_n, hidden_state_size, out_dim,  method=3):
         super(MPNNSingleHAttn, self).__init__()
 
         # equation (1)
 
-        self.fc = nn.Linear(hidden_state_size, hidden_state_size, bias=False)
+        self.fc = nn.Linear(hidden_state_size, out_dim, bias=False)
         # equation (2)
         self.method_v = method
         if method ==1:
-            self.attn_fc = nn.Linear(2 * hidden_state_size, 1, bias=False)
+            self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
         if method ==2:
-            self.attn_fc = nn.Linear(hidden_state_size, 1, bias=False)
+            self.attn_fc = nn.Linear(out_dim, 1, bias=False)
         if method ==3:
-            self.attn_fc = nn.Linear(hidden_state_size*2+in_n[1], 1, bias=False)
+            self.attn_fc = nn.Linear(out_dim*2+in_n[1], 1, bias=False)
         if method ==4:
             self.attn_fc = nn.Linear(in_n[1], 1, bias=False)
         if method ==5:
-            self.attn_fc = nn.Linear(2 * hidden_state_size, 1, bias=False)
+            self.attn_fc = nn.Linear(2 * out_dim, 1, bias=False)
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -145,8 +149,7 @@ class MPNNSingleHAttn(nn.Module):
     def method1(self, h0):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
-        # print(z.shape)
-        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z = z.view(h0.size(0),h0.size(1),-1)
         z1 = z.repeat(1, z.size(1), 1)
         z2 = z.repeat_interleave(z.size(1), dim = 1)
 
@@ -159,14 +162,14 @@ class MPNNSingleHAttn(nn.Module):
         # alpha torch.Size([10, 441, 1])
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        h_t = torch.sum(alpha * z, dim=2)
         return h_t
 
     def method2(self, h0):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
         # print(z.shape)
-        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z = z.view(h0.size(0),h0.size(1),-1)
         z1 = z.repeat(1, z.size(1), 1)
         z2 = z.repeat_interleave(z.size(1), dim = 1)
 
@@ -179,14 +182,14 @@ class MPNNSingleHAttn(nn.Module):
         # alpha torch.Size([10, 441, 1])
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        h_t = torch.sum(alpha * z, dim=2)
         return h_t
 
     def method3(self, h0, e):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
         # print(z.shape)
-        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z = z.view(h0.size(0),h0.size(1),-1)
         z1 = z.repeat(1, z.size(1), 1)
         z2 = z.repeat_interleave(z.size(1), dim = 1)
         m = e.view(e.size(0), -1, e.size(3))
@@ -195,25 +198,25 @@ class MPNNSingleHAttn(nn.Module):
         alpha = F.softmax(eij, dim=1)
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        h_t = torch.sum(alpha * z, dim=2)
         return h_t
 
     def method4(self, h0, e):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
-        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z = z.view(h0.size(0),h0.size(1),-1)
         edij = e.view(e.size(0), -1, e.size(3))
         eij = F.leaky_relu(self.attn_fc(edij))
         alpha = F.softmax(eij, dim=1)
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        h_t = torch.sum(alpha * z, dim=2)
         return h_t
 
     def method5(self, h0, e):
         h_1 = h0.view(-1, h0.size(2))
         z = self.fc(h_1)
-        z = z.view(h0.size(0),h0.size(1),h0.size(2))
+        z = z.view(h0.size(0),h0.size(1),-1)
         z1 = z.repeat(1, z.size(1), 1)
         z2 = z.repeat_interleave(z.size(1), dim = 1)
         zij = torch.cat((z1, z2), dim= 2)
@@ -221,7 +224,7 @@ class MPNNSingleHAttn(nn.Module):
         alpha = F.softmax(eij, dim=1)
         alpha= alpha.view(h0.size(0),h0.size(1),h0.size(1),-1)
         z = z[:,:,None,:].expand(h0.size(0),h0.size(1),h0.size(1),-1)
-        h_t = torch.sigmoid(torch.sum(alpha * z, dim=2))
+        h_t = torch.sum(alpha * z, dim=2)
         return h_t
 
 
@@ -239,21 +242,24 @@ class MPNNMultiHAttn(nn.Module):
         
     """
 
-    def __init__(self, in_n, hidden_state_size, method=3,num_heads=3, merge= 'mean'):
+    def __init__(self, in_n, hidden_state_size, out_dim, method=3,num_heads=3, merge= 'mean'):
         super(MPNNMultiHAttn, self).__init__()
 
         # self.g = g
         # equation (1)
         self.heads = nn.ModuleList()
         for i in range(num_heads):
-            self.heads.append(MPNNSingleHAttn(in_n, hidden_state_size,  method))
+            self.heads.append(MPNNSingleHAttn(in_n, hidden_state_size, out_dim,  method))
         self.merge = merge
 
 
     def forward(self, h_in, e):
-        heads_out = [attn_head(h_in, e) for attn_head in self.heads]
+        # print(h_in.size())
         if self.merge == 'cat':
-            return torch.cat(heads_out, dim=1)
+            heads_out = [torch.sigmoid(attn_head(h_in, e)) for attn_head in self.heads]
+            return torch.cat(heads_out, dim=-1)
         else:
-            return torch.mean(torch.stack(heads_out), axis = 0)
+            heads_out = [attn_head(h_in, e) for attn_head in self.heads]
+            return torch.sigmoid(torch.mean(torch.stack(heads_out), axis = 0))
+            # return torch.mean(torch.stack(heads_out))
 
