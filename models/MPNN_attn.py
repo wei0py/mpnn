@@ -39,7 +39,7 @@ class MPNNAttn(nn.Module):
 
         # Define message
         if num_heads == 1:
-            self.m = nn.ModuleList([MPNNSingleHAttn(in_n, hidden_state_size,hidden_state_size, method)])
+            self.m = nn.ModuleList([MPNNMultiHAttn(in_n, hidden_state_size,hidden_state_size, method, num_heads=1, merge='mean')])
         else:
             self.m = nn.ModuleList()
             self.m.append(MPNNMultiHAttn(in_n, hidden_state_size, hidden_state_size, method, num_heads, merge='cat'))
