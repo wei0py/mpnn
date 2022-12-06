@@ -1,11 +1,18 @@
 # Neural Message Passing for Quantum Chemistry
 
 Based on the article proposed by Gilmer *et al.* [1] and the code of [nmp_qc](https://github.com/priba/nmp_qc.git) project from Pau Riba and Anjan Dutta, we explored some other methods to improve the performance. 
-The methodology includes 
+The methodology includes two parts: Feature Engineering and Network Architecture Design.
+
+- Feature Engineering
+
+- Network Architecture Design
 
 ## Installation
 
     $ pip install -r requirements.txt
+
+## Run the script
+
     $ python main.py
     $ python main.py --mpnn
     $ python main.py --ggnn

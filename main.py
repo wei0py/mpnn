@@ -165,7 +165,7 @@ def main():
     g, h_t, e = g_tuple
 
     print('Save parameters')
-    with open('commandline_args'+str(args.job)+str(time.time()), 'w+') as f:
+    with open('commandline_args'+str(args.job), 'w+') as f:
         json.dump(args.__dict__, f, indent=2)
 
     print('\tStatistics')
