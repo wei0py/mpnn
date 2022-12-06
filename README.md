@@ -29,7 +29,7 @@ following the instructions available [here](http://www.rdkit.org/docs/Install.ht
 
 ## Data
 
-The data used in this project can be downloaded [here](https://github.com/priba/nmp_qc/tree/master/data).
+The data used in this project can be downloaded [here](https://github.com/wei0py/mpnn/tree/master/data).
 
 ## Bibliography
 
