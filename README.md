@@ -34,7 +34,8 @@ The data used in this project can be downloaded [here](https://github.com/priba/
 ## Bibliography
 
 - [1] Gilmer *et al.*, [Neural Message Passing for Quantum Chemistry](https://arxiv.org/pdf/1704.01212.pdf), arXiv, 2017.
-
+- [2] Petar Veličković *et al.*, [Graph attention networks](https://arxiv.org/pdf/1710.10903), arXiv, 2017.
+- [3] Brody *et al.*, [How Attentive are Graph Attention Networks?](https://arxiv.org/pdf/2105.14491.pdf), arXiv, 2022.
 
 
 ## Authors
