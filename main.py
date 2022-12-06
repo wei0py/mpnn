@@ -80,7 +80,7 @@ parser.add_argument('--log-interval', type=int, default=20, metavar='N',
 parser.add_argument('--colab', action='store_true', default=False,
                     help='are you using colab to run?')
 # Accelerating
-parser.add_argument('--prefetch', type=int, default=2, help='Pre-fetching threads.')
+parser.add_argument('--prefetch', type=int, default=0, help='Pre-fetching threads.')
 
 parser.add_argument('--mpnn', action='store_true', default=False,
                     help='choose mpnn')
@@ -122,6 +122,7 @@ def main():
 
     # fix the datasets for each job
     np.random.seed(3)
+    torch.manual_seed(3)
     idx = np.random.permutation(len(files))
     idx = idx.tolist()
 
