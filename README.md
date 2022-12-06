@@ -14,11 +14,13 @@ The methodology includes two parts: Feature Engineering and Network Architecture
 ## Run the script
 
     $ python main.py
-    $ python main.py --mpnn
-    $ python main.py --ggnn
-    $ python main.py --epochs 4 --mpnnattn --method_attn 1 --num_heads 4 --e_rep 4
-    (method 1,2,3, 4, 5 supported now)
-    (e_rep: 1-5 supported now)
+    
+    $ python main.py --epochs 100 --mpnn --e_rep 6
+
+    $ python main.py --epochs 100 --mpnnattn --method_attn 3 --num_heads 8 --e_rep 6
+
+    (method_attn: 1, 2, 3, 4, 5 supported now)
+    (e_rep: 1, 2, 3, 4, 5, 6 supported now)
     
 ## Installation of rdkit
 
@@ -37,4 +39,5 @@ The data used in this project can be downloaded [here](https://github.com/priba/
 
 ## Authors
 
-* 
+* Buyu Zhang (@wei0py)
+* Zheyu Lu (@Nsigma-Bill)

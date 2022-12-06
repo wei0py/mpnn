@@ -11,5 +11,10 @@ Collection of classes of different datasets, implementing a data generator in Py
 
 ## Authors
 
+* Buyu Zhang (@wei0py)
+* Zheyu Lu
+
+## Original authors
+
 * Pau Riba (@priba)
 * Anjan Dutta (@AnjanDutta)

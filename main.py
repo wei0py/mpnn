@@ -94,6 +94,11 @@ parser.add_argument('--num_heads', type=int, default=1, metavar='NH',
                     help='Number of heads (default: 1)')
 parser.add_argument('--e_rep', type=int, default=1, metavar='EP',
                     help='e_presentation (default: 1:raw_distance) 1:raw_distance, 2:chem_graph, 3:distance_bin, 4:all_distance, 5:decay_distance, 6:two_distance')
+parser.add_argument('--hidden_state_size', type=int, default=32, metavar='HS',
+                    help='Number of hidden_state_size (default: 32)')
+parser.add_argument('--nlayers', type=int, default=3, metavar='NL',
+                    help='number of layers')
+
 
 
 best_er1 = 0
@@ -192,9 +197,9 @@ def main():
 
     print('\tCreate model')
     
-    hidden_state_size = 32
+    hidden_state_size = args.hidden_state_size
     message_size = 32
-    n_layers = 3
+    n_layers = args.nlayers
     l_target = len(l)
     type ='regression'
     if args.mpnn:
