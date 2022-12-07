@@ -7,6 +7,8 @@ The methodology includes two parts: Feature Engineering and Network Architecture
 
 - Network Architecture Design
 
+The main part of these methods implemented could be found in models/MPNN_attn.py and datasets/utils.py. 
+
 ## Installation
 
     $ pip install -r requirements.txt
