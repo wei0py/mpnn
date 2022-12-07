@@ -21,6 +21,7 @@ The methodology includes two parts: Feature Engineering and Network Architecture
 
     (method_attn: 1, 2, 3, 4, 5 supported now)
     (e_rep: 1, 2, 3, 4, 5, 6 supported now)
+More argument information could be find in main.py. 
     
 ## Installation of rdkit
 
